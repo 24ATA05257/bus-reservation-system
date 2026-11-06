@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BlueBus | Online Bus Reservation</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#0a2a5e;--blue:#0d6efd;--sky:#e8f1ff;--ink:#1b2a41;--bs-primary:#0d6efd;--bs-primary-rgb:13,110,253}
+body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#f5f8ff;color:var(--ink)}
+.page{min-height:70vh;animation:fade .45s ease both}
+@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.navbar{background:var(--navy)}
+.navbar .nav-link{color:#cfe0ff}.navbar .nav-link:hover,.navbar .nav-link.active{color:#fff}
+.brand{font-weight:800;letter-spacing:.3px;color:#fff!important}.brand span{color:#6ea8fe}
+.btn-primary{background:var(--blue);border-color:var(--blue);font-weight:600;transition:transform .15s,box-shadow .15s}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(13,110,253,.35)}
+.card{border:1px solid #e1e9f7;border-radius:16px}
+.hero{background:linear-gradient(135deg,#0a2a5e 0%,#0d6efd 100%);box-shadow:0 20px 50px rgba(13,110,253,.25)}
+.search-card{border:0}
+.bus-wrap{max-width:380px;animation:drive 6s ease-in-out infinite alternate}
+@keyframes drive{from{transform:translateX(0)}to{transform:translateX(24px)}}
+.bus-svg{width:100%;height:auto;display:block}
+.route-card{cursor:pointer;transition:transform .2s,box-shadow .2s}
+.route-card:hover{transform:translateY(-4px);box-shadow:0 12px 28px rgba(10,42,94,.12)}
+.bus-card{transition:box-shadow .2s}.bus-card:hover{box-shadow:0 10px 28px rgba(10,42,94,.12)}
+.bus-card .thumb{background:var(--sky);border-radius:12px;padding:8px}
+.time{font-size:1.35rem;font-weight:800}
+.line{flex:1;border-top:2px dashed #9bbcf5;margin:0 .75rem;position:relative;top:-6px;text-align:center}
+.line small{background:#fff;padding:0 .4rem;position:relative;top:-10px;color:#5b6b85}
+.price{font-size:1.5rem;font-weight:800;color:var(--navy)}
+.badge-type{background:var(--sky);color:var(--blue);font-weight:600}
+.bus-body{border:3px solid #9bbcf5;border-radius:28px 28px 16px 16px;padding:16px;max-width:300px;margin:auto;background:#f8fbff}
+.driver{text-align:right;font-size:.75rem;color:#5b6b85;border-bottom:2px dashed #cfe0ff;padding-bottom:8px;margin-bottom:12px}
+.srow{display:flex;justify-content:center;gap:8px;margin-bottom:8px}.aisle{width:28px}
+.seat{width:46px;height:46px;border-radius:10px 10px 6px 6px;border:2px solid var(--blue);background:#fff;color:var(--blue);font-weight:700;font-size:.8rem;cursor:pointer;transition:transform .15s,background .15s}
+.seat:hover:not(:disabled){transform:scale(1.1)}
+.seat.selected{background:var(--blue);color:#fff;animation:pop .2s}
+.seat:disabled{background:#d5dce8;border-color:#d5dce8;color:#8b97ab;cursor:not-allowed}
+@keyframes pop{50%{transform:scale(1.2)}}
+.lg{display:inline-block;width:16px;height:16px;border-radius:4px;margin-right:6px;vertical-align:-3px;border:2px solid var(--blue)}
+.lg.sel{background:var(--blue)}.lg.bkd{background:#d5dce8;border-color:#d5dce8}
+.chip{display:inline-block;background:var(--blue);color:#fff;border-radius:8px;padding:2px 10px;margin:2px;font-weight:700;font-size:.85rem}
+.tick{width:72px;height:72px;line-height:72px;margin:auto;border-radius:50%;background:#198754;color:#fff;font-size:2.2rem;animation:pop .5s}
+.ticket{max-width:640px;margin:auto;border-radius:18px;overflow:hidden;border:1px solid #cfe0ff;background:#fff}
+.ticket .top{background:linear-gradient(135deg,var(--navy),var(--blue));color:#fff;padding:20px}
+.ticket .body{padding:20px;border-top:2px dashed #cfe0ff}
+.stat{border-left:5px solid var(--blue)}
+footer{background:var(--navy);color:#9fb7e3}
+@media(max-width:576px){.time{font-size:1.1rem}.seat{width:40px;height:40px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media print{nav,footer,.d-print-none{display:none!important}body{background:#fff}}
+
+</style>
+</head>
+<body>
+<div id="nav"></div>
+<main id="view" class="container py-4 page"></main>
+<div id="foot"></div>
+
+<!-- Page templates: one is shown at a time, chosen by the URL hash (#login, #search, ...) -->
+<template id="t-index">
+<section class="hero rounded-4 p-4 p-md-5 mb-5">
+ <div class="row align-items-center g-4">
+  <div class="col-lg-6 text-white">
+   <h1 class="display-5 fw-bold">Book your bus in under a minute.</h1>
+   <p class="lead opacity-75">Compare timings, pick your exact seat and see the full fare before you pay a rupee.</p>
+   <div class="bus-wrap" id="heroBus"></div>
+  </div>
+  <div class="col-lg-6"><div class="card search-card p-4 shadow-lg"><h5 class="fw-bold mb-3">Find a bus</h5><div id="sf"></div></div></div>
+ </div>
+</section>
+<h4 class="fw-bold mb-3">Popular routes</h4>
+<div class="row g-3 mb-5" id="routes"></div>
+<div class="row g-3 text-center">
+ <div class="col-md-4"><div class="card p-4 h-100"><h6 class="fw-bold">Pick your own seat</h6><p class="text-muted mb-0">See the live seat map and choose window or aisle.</p></div></div>
+ <div class="col-md-4"><div class="card p-4 h-100"><h6 class="fw-bold">Clear pricing</h6><p class="text-muted mb-0">Fare and GST are shown as you select seats.</p></div></div>
+ <div class="col-md-4"><div class="card p-4 h-100"><h6 class="fw-bold">Easy cancellation</h6><p class="text-muted mb-0">Cancel from My Bookings and the seats are released.</p></div></div>
+</div>
+</template>
+<template id="t-login">
+<div class="row justify-content-center"><div class="col-md-6 col-lg-5"><div class="card p-4 shadow-sm">
+<h3 class="fw-bold mb-1">Welcome back</h3><p class="text-muted">Log in to book and manage tickets.</p>
+<form id="loginForm" novalidate>
+ <div class="mb-3"><label class="form-label">Email</label><input id="email" type="email" class="form-control" placeholder="you@example.com"><div class="invalid-feedback">Enter a valid email address.</div></div>
+ <div class="mb-3"><label class="form-label">Password</label><input id="password" type="password" class="form-control"><div class="invalid-feedback">Password must be at least 6 characters.</div></div>
+ <button class="btn btn-primary w-100 py-2">Log in</button>
+</form>
+<p class="small text-muted mt-3 mb-1">New here? <a href="#register">Create an account</a></p>
+<p class="small text-muted mb-0">Demo admin: admin@bus.com / admin123</p>
+</div></div></div>
+</template>
+<template id="t-register">
+<div class="row justify-content-center"><div class="col-md-7 col-lg-6"><div class="card p-4 shadow-sm">
+<h3 class="fw-bold mb-1">Create your account</h3><p class="text-muted">Takes less than a minute.</p>
+<form id="regForm" novalidate><div class="row g-3">
+ <div class="col-12"><label class="form-label">Full name</label><input id="name" class="form-control"><div class="invalid-feedback">Enter your full name.</div></div>
+ <div class="col-md-6"><label class="form-label">Email</label><input id="email" type="email" class="form-control"><div class="invalid-feedback">Enter a valid email address.</div></div>
+ <div class="col-md-6"><label class="form-label">Mobile number</label><input id="phone" class="form-control" maxlength="10"><div class="invalid-feedback">Enter a 10-digit mobile number.</div></div>
+ <div class="col-md-6"><label class="form-label">Password</label><input id="password" type="password" class="form-control"><div class="invalid-feedback">Use at least 6 characters.</div></div>
+ <div class="col-md-6"><label class="form-label">Confirm password</label><input id="confirm" type="password" class="form-control"><div class="invalid-feedback">Passwords do not match.</div></div>
+ <div class="col-12"><button class="btn btn-primary w-100 py-2">Create account</button></div>
+</div></form>
+<p class="small text-muted mt-3 mb-0">Already registered? <a href="#login">Log in</a></p>
+</div></div></div>
+</template>
+<template id="t-search">
+<div class="card p-3 mb-3 shadow-sm"><div id="sf"></div></div>
+<div class="row g-4">
+ <aside class="col-lg-3"><div class="card p-3 shadow-sm">
+  <h6 class="fw-bold">Filter buses</h6>
+  <input id="q" class="form-control mb-2" placeholder="Search by bus name">
+  <select id="type" class="form-select mb-2"><option value="">All bus types</option><option>AC Sleeper</option><option>AC Seater</option><option>Non-AC Seater</option><option>Volvo Multi-Axle</option></select>
+  <select id="sort" class="form-select mb-3"><option value="dep">Earliest departure</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option></select>
+  <label class="form-label small mb-0">Max price: <b id="pv"></b></label>
+  <input id="maxp" type="range" class="form-range" min="300" max="2000" step="50" value="2000">
+ </div></aside>
+ <section class="col-lg-9"><h5 class="fw-bold mb-3" id="count"></h5><div id="results"></div></section>
+</div>
+</template>
+<template id="t-seats">
+<div id="busHead" class="mb-3"></div>
+<div class="row g-4">
+ <div class="col-lg-7"><div class="card p-4 shadow-sm">
+  <div class="d-flex flex-wrap gap-3 small mb-3"><span><i class="lg avail"></i>Available</span><span><i class="lg sel"></i>Selected</span><span><i class="lg bkd"></i>Booked</span></div>
+  <div class="bus-body"><div class="driver">Driver</div><div id="seatMap"></div></div>
+ </div></div>
+ <div class="col-lg-5"><div class="card p-4 shadow-sm sticky-lg-top" style="top:90px">
+  <h5 class="fw-bold">Your selection</h5><div id="summary" class="mb-3"></div>
+  <button id="goPax" class="btn btn-primary w-100 py-2">Continue to passenger details</button>
+ </div></div>
+</div>
+</template>
+<template id="t-passenger">
+<div class="row g-4">
+ <div class="col-lg-8"><form id="paxForm" novalidate>
+  <div id="paxForms"></div>
+  <div class="card p-4 shadow-sm mb-3"><h6 class="fw-bold">Contact details</h6><div class="row g-3">
+   <div class="col-md-6"><label class="form-label">Email</label><input id="email" type="email" class="form-control"><div class="invalid-feedback">Enter a valid email address.</div></div>
+   <div class="col-md-6"><label class="form-label">Mobile number</label><input id="phone" class="form-control" maxlength="10"><div class="invalid-feedback">Enter a 10-digit mobile number.</div></div>
+  </div></div>
+  <button class="btn btn-primary px-4 py-2">Confirm booking</button> <a href="#seats" class="btn btn-outline-primary px-4 py-2">Back to seats</a>
+ </form></div>
+ <div class="col-lg-4"><div class="card p-4 shadow-sm" id="summary"></div></div>
+</div>
+</template>
+<template id="t-confirmation">
+<div class="text-center mb-4"><div class="tick">&#10003;</div><h2 class="fw-bold mt-2">Booking confirmed</h2><p class="text-muted">This is a demo ticket. No payment was taken.</p></div>
+<div id="ticket"></div>
+<div class="text-center mt-4 d-print-none"><button class="btn btn-outline-primary me-2" onclick="window.print()">Print ticket</button><a href="#bookings" class="btn btn-primary">View my bookings</a></div>
+</template>
+<template id="t-bookings">
+<h3 class="fw-bold mb-3">My bookings</h3><div id="list"></div>
+</template>
+<template id="t-admin">
+<h3 class="fw-bold mb-3">Admin dashboard</h3>
+<div class="row g-3 mb-4" id="stats"></div>
+<div class="card p-4 shadow-sm mb-4"><h6 class="fw-bold">Add a demo bus</h6>
+<form id="busForm" novalidate><div class="row g-2">
+ <div class="col-md-3"><input id="bname" class="form-control" placeholder="Bus name"></div>
+ <div class="col-md-2"><select id="btype" class="form-select"><option>AC Sleeper</option><option>AC Seater</option><option>Non-AC Seater</option><option>Volvo Multi-Axle</option></select></div>
+ <div class="col-md-2"><select id="bfrom" class="form-select"></select></div>
+ <div class="col-md-2"><select id="bto" class="form-select"></select></div>
+ <div class="col-md-1"><input id="bdep" type="time" class="form-control" value="21:00"></div>
+ <div class="col-md-1"><input id="bdur" type="number" min="1" max="24" class="form-control" placeholder="Hrs" value="8"></div>
+ <div class="col-md-1"><input id="bprice" type="number" min="100" class="form-control" placeholder="₹"></div>
+ <div class="col-12"><button class="btn btn-primary">Add bus</button></div>
+</div></form></div>
+<div class="card p-3 shadow-sm mb-4"><h6 class="fw-bold">Buses</h6><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Name</th><th>Route</th><th>Time</th><th>Type</th><th>Fare</th><th></th></tr></thead><tbody id="busRows"></tbody></table></div></div>
+<div class="card p-3 shadow-sm"><h6 class="fw-bold">All bookings</h6><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>ID</th><th>User</th><th>Bus</th><th>Date</th><th>Seats</th><th>Total</th><th>Status</th></tr></thead><tbody id="bkRows"></tbody></table></div></div>
+</template>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+/* BlueBus - frontend-only demo. All data lives in browser localStorage. */
+const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+const DB={get:(k,d=null)=>{try{const v=JSON.parse(localStorage.getItem(k));return v??d}catch{return d}},set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))};
+const CITIES=['Bengaluru','Chennai','Hyderabad','Kurnool','Mumbai','Pune','Tirupati','Vijayawada'];
+const TYPES=['AC Sleeper','AC Seater','Non-AC Seater','Volvo Multi-Axle'];
+const inr=n=>'₹'+Number(n).toLocaleString('en-IN');
+const today=()=>new Date().toISOString().slice(0,10);
+const user=()=>DB.get('user'),go=u=>{const h='#'+u.replace('.html','');if(location.hash===h)route();else location.hash=h};
+const emailOk=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),phoneOk=v=>/^[6-9]\d{9}$/.test(v);
+const fmtDate=d=>new Date(d+'T00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+const hash=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))>>>0;return h};
+
+function toast(msg,type='success'){
+  const t=document.createElement('div');
+  t.className=`alert alert-${type} shadow position-fixed top-0 end-0 m-3`;t.style.zIndex=2000;t.textContent=msg;
+  document.body.appendChild(t);setTimeout(()=>t.remove(),3000);
+}
+function mark(el,ok){el.classList.toggle('is-invalid',!ok);el.classList.toggle('is-valid',ok);return ok}
+
+const busSvg=(c='#0d6efd')=>`<svg viewBox="0 0 240 110" class="bus-svg" aria-hidden="true">
+<rect x="8" y="18" width="214" height="66" rx="16" fill="${c}"/>
+${[22,56,90,124,158].map(x=>`<rect x="${x}" y="30" width="26" height="24" rx="4" fill="#e8f1ff"/>`).join('')}
+<rect x="192" y="30" width="24" height="38" rx="5" fill="#cfe3ff"/>
+<rect x="8" y="62" width="214" height="7" fill="#fff" opacity=".85"/>
+<rect x="8" y="76" width="214" height="8" rx="3" fill="#0a2a5e" opacity=".35"/>
+<circle cx="58" cy="86" r="15" fill="#1b2a41"/><circle cx="58" cy="86" r="6" fill="#cfd8e6"/>
+<circle cx="178" cy="86" r="15" fill="#1b2a41"/><circle cx="178" cy="86" r="6" fill="#cfd8e6"/>
+<circle cx="218" cy="70" r="4" fill="#ffd966"/></svg>`;
+
+/* ---------- Demo data ---------- */
+function seed(){
+  if(!DB.get('users'))DB.set('users',[{name:'Admin',email:'admin@bus.com',phone:'9999999999',password:'admin123',role:'admin'}]);
+  if(!DB.get('bookings'))DB.set('bookings',[]);
+  if(DB.get('buses'))return;
+  const R=[['Hyderabad','Bengaluru',9],['Bengaluru','Hyderabad',9],['Hyderabad','Chennai',10],['Chennai','Hyderabad',10],['Kurnool','Hyderabad',4],['Hyderabad','Kurnool',4],['Bengaluru','Chennai',6],['Chennai','Bengaluru',6],['Vijayawada','Tirupati',7],['Tirupati','Vijayawada',7],['Mumbai','Pune',4],['Pune','Mumbai',4],['Kurnool','Bengaluru',6],['Bengaluru','Kurnool',6]];
+  const N=['BlueLine Express','SkyRide Travels','Royal Cruiser','Metro Voyager'],COL=['#0d6efd','#0a58ca','#3d8bfd','#084298'],DEP=['06:30','13:00','21:30','22:45'];
+  const buses=[];let n=1;
+  R.forEach(([from,to,dur],i)=>[0,1,2].forEach(j=>{
+    const k=(i+j)%4,dep=DEP[(i+j*2)%4],[h,m]=dep.split(':').map(Number),a=h+dur;
+    buses.push({id:'B'+n++,name:N[k],type:TYPES[k],from,to,dep,dur,arr:String(a%24).padStart(2,'0')+':'+String(m).padStart(2,'0')+(a>=24?' +1':''),price:[900,700,550,1250][k]*(dur/8+.5)|0||500,color:COL[k]});
+  }));
+  buses.forEach(b=>b.price=Math.round(b.price/10)*10);
+  DB.set('buses',buses);
+}
+const buses=()=>DB.get('buses',[]),bookings=()=>DB.get('bookings',[]);
+function taken(b,date){
+  const s=new Set(),h=hash(b.id+date);
+  for(let i=0;i<9;i++)s.add((h*(i+7)+i*13)%40+1);
+  bookings().filter(x=>x.busId===b.id&&x.date===date&&x.status==='Confirmed').forEach(x=>x.seats.forEach(v=>s.add(v)));
+  return s;
+}
+function requireLogin(){if(user())return true;DB.set('next',PAGE);toast('Please log in to continue','warning');setTimeout(()=>go('login.html'),800);return false}
+
+/* ---------- Shared layout ---------- */
+function layout(){
+  const u=user(),p=PAGE;
+  const L=(h,t,k)=>`<li class="nav-item"><a class="nav-link ${p===k?'active':''}" href="${h}">${t}</a></li>`;
+  $('#nav').innerHTML=`<nav class="navbar navbar-expand-lg sticky-top navbar-dark"><div class="container">
+  <a class="navbar-brand brand" href="#index">Blue<span>Bus</span></a>
+  <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#nv"><span class="navbar-toggler-icon"></span></button>
+  <div class="collapse navbar-collapse" id="nv"><ul class="navbar-nav ms-auto align-items-lg-center">
+  ${L('#index','Home','index')}${L('#search','Search buses','search')}${u?L('#bookings','My bookings','bookings'):''}${u&&u.role==='admin'?L('#admin','Admin','admin'):''}
+  ${u?`<li class="nav-item"><span class="nav-link">Hi, ${u.name.split(' ')[0]}</span></li><li class="nav-item"><button id="out" class="btn btn-sm btn-outline-light ms-lg-2">Log out</button></li>`
+     :`<li class="nav-item"><a class="nav-link" href="#login">Log in</a></li><li class="nav-item"><a class="btn btn-sm btn-light ms-lg-2" href="#register">Sign up</a></li>`}
+  </ul></div></div></nav>`;
+  $('#foot').innerHTML=`<footer class="py-4 mt-5 text-center small">BlueBus demo. Frontend only, no real payments or bookings.</footer>`;
+  $('#out')?.addEventListener('click',()=>{localStorage.removeItem('user');go('index.html')});
+}
+
+/* ---------- Search form ---------- */
+function searchForm(el,vals={}){
+  const opt=(c,v)=>`<option value="">Select city</option>`+CITIES.map(x=>`<option ${x===v?'selected':''}>${x}</option>`).join('');
+  el.innerHTML=`<form id="sForm" class="row g-2 align-items-end" novalidate>
+  <div class="col-md"><label class="form-label small mb-1">From</label><select id="from" class="form-select">${opt(0,vals.from)}</select></div>
+  <div class="col-md"><label class="form-label small mb-1">To</label><select id="to" class="form-select">${opt(0,vals.to)}</select></div>
+  <div class="col-md"><label class="form-label small mb-1">Travel date</label><input id="date" type="date" class="form-control" min="${today()}" value="${vals.date||today()}"></div>
+  <div class="col-md-auto"><button class="btn btn-primary w-100">Search buses</button></div></form>`;
+  $('#sForm').addEventListener('submit',e=>{
+    e.preventDefault();const f=$('#from'),t=$('#to'),d=$('#date');
+    const ok=[mark(f,!!f.value),mark(t,!!t.value&&t.value!==f.value),mark(d,d.value>=today())].every(Boolean);
+    if(!ok)return toast('Choose different cities and a valid date','danger');
+    DB.set('search',{from:f.value,to:t.value,date:d.value});go('search.html');
+  });
+}
+
+/* ---------- Pages ---------- */
+const P={
+index(){
+  $('#heroBus').innerHTML=busSvg('#ffffff');
+  searchForm($('#sf'),DB.get('search',{}));
+  const pop=[['Hyderabad','Bengaluru'],['Chennai','Hyderabad'],['Kurnool','Hyderabad'],['Mumbai','Pune']];
+  $('#routes').innerHTML=pop.map(([a,b],i)=>{const m=Math.min(...buses().filter(x=>x.from===a&&x.to===b).map(x=>x.price));
+    return `<div class="col-6 col-lg-3"><div class="card route-card p-3 h-100" data-i="${i}"><div class="thumb mb-2">${busSvg()}</div><div class="fw-bold">${a} to ${b}</div><div class="text-muted small">From ${inr(m)}</div></div></div>`}).join('');
+  $$('.route-card').forEach(c=>c.onclick=()=>{const [a,b]=pop[c.dataset.i];$('#from').value=a;$('#to').value=b;window.scrollTo({top:0,behavior:'smooth'})});
+},
+login(){
+  $('#loginForm').addEventListener('submit',e=>{
+    e.preventDefault();const em=$('#email'),pw=$('#password');
+    if(![mark(em,emailOk(em.value)),mark(pw,pw.value.length>=6)].every(Boolean))return;
+    const u=DB.get('users').find(x=>x.email.toLowerCase()===em.value.trim().toLowerCase()&&x.password===pw.value);
+    if(!u)return toast('Email or password is incorrect','danger');
+    DB.set('user',u);const n=DB.get('next');localStorage.removeItem('next');toast('Logged in');
+    setTimeout(()=>go(n||(u.role==='admin'?'admin.html':'index.html')),500);
+  });
+},
+register(){
+  $('#regForm').addEventListener('submit',e=>{
+    e.preventDefault();const g=i=>$('#'+i),users=DB.get('users');
+    const ok=[mark(g('name'),g('name').value.trim().length>=3),mark(g('email'),emailOk(g('email').value)),mark(g('phone'),phoneOk(g('phone').value)),mark(g('password'),g('password').value.length>=6),mark(g('confirm'),g('confirm').value===g('password').value&&!!g('confirm').value)].every(Boolean);
+    if(!ok)return;
+    if(users.some(x=>x.email.toLowerCase()===g('email').value.toLowerCase()))return toast('That email is already registered','danger');
+    users.push({name:g('name').value.trim(),email:g('email').value.trim(),phone:g('phone').value,password:g('password').value,role:'user'});
+    DB.set('users',users);toast('Account created. Please log in.');setTimeout(()=>go('login.html'),800);
+  });
+},
+search(){
+  const s=DB.get('search');
+  searchForm($('#sf'),s||{});
+  if(!s){$('#results').innerHTML='<div class="card p-4 text-center text-muted">Choose cities and a date above to see buses.</div>';return}
+  const draw=()=>{
+    $('#pv').textContent=inr($('#maxp').value);
+    const q=$('#q').value.toLowerCase(),t=$('#type').value,mp=+$('#maxp').value,so=$('#sort').value;
+    const list=buses().filter(b=>b.from===s.from&&b.to===s.to&&b.price<=mp&&(!t||b.type===t)&&b.name.toLowerCase().includes(q))
+      .sort((a,b)=>so==='low'?a.price-b.price:so==='high'?b.price-a.price:a.dep.localeCompare(b.dep));
+    $('#count').textContent=`${list.length} bus${list.length===1?'':'es'} from ${s.from} to ${s.to} on ${fmtDate(s.date)}`;
+    $('#results').innerHTML=list.length?list.map(b=>{const left=40-taken(b,s.date).size;return `
+    <div class="card bus-card p-3 mb-3"><div class="row g-3 align-items-center">
+     <div class="col-md-3"><div class="thumb">${busSvg(b.color)}</div></div>
+     <div class="col-md-6"><div class="fw-bold">${b.name} <span class="badge badge-type ms-1">${b.type}</span></div>
+      <div class="d-flex align-items-center mt-2"><div><div class="time">${b.dep}</div><small class="text-muted">${b.from}</small></div>
+      <div class="line"><small>${b.dur}h</small></div><div class="text-end"><div class="time">${b.arr}</div><small class="text-muted">${b.to}</small></div></div></div>
+     <div class="col-md-3 text-md-end"><div class="price">${inr(b.price)}</div><small class="${left<8?'text-danger':'text-success'}">${left} seats left</small>
+      <button class="btn btn-primary w-100 mt-2" data-id="${b.id}" ${left?'':'disabled'}>Select seats</button></div></div></div>`}).join('')
+      :'<div class="card p-4 text-center text-muted">No buses match. Try raising the max price or clearing filters.</div>';
+    $$('[data-id]').forEach(btn=>btn.onclick=()=>{if(!requireLogin())return;DB.set('sel',{busId:btn.dataset.id,date:s.date,seats:[]});go('seats.html')});
+  };
+  ['q','type','sort','maxp'].forEach(i=>$('#'+i).addEventListener('input',draw));draw();
+},
+seats(){
+  if(!requireLogin())return;
+  const sel=DB.get('sel'),b=buses().find(x=>x.id===sel?.busId);
+  if(!b){$('#view').innerHTML='<div class="card p-4 text-center">No bus selected. <a href="#search">Search buses</a></div>';return}
+  const tk=taken(b,sel.date);sel.seats=sel.seats.filter(n=>!tk.has(n));
+  $('#busHead').innerHTML=`<h3 class="fw-bold mb-0">${b.name}</h3><div class="text-muted">${b.from} to ${b.to}, ${fmtDate(sel.date)}, departs ${b.dep}, ${b.type}</div>`;
+  const rows=[...Array(10).keys()].map(r=>{const s=n=>`<button type="button" class="seat" data-n="${n}" ${tk.has(n)?'disabled':''}>${n}</button>`,n=r*4;
+    return `<div class="srow">${s(n+1)}${s(n+2)}<div class="aisle"></div>${s(n+3)}${s(n+4)}</div>`}).join('');
+  $('#seatMap').innerHTML=rows;
+  const upd=()=>{
+    $$('.seat').forEach(e=>e.classList.toggle('selected',sel.seats.includes(+e.dataset.n)));
+    const n=sel.seats.length,fare=n*b.price,gst=Math.round(fare*.05);
+    $('#summary').innerHTML=n?`<div class="mb-2">${sel.seats.sort((a,c)=>a-c).map(x=>`<span class="chip">${x}</span>`).join('')}</div>
+     <div class="d-flex justify-content-between"><span>${n} x ${inr(b.price)}</span><span>${inr(fare)}</span></div>
+     <div class="d-flex justify-content-between"><span>GST (5%)</span><span>${inr(gst)}</span></div><hr>
+     <div class="d-flex justify-content-between fw-bold fs-5"><span>Total</span><span>${inr(fare+gst)}</span></div>`
+     :'<p class="text-muted mb-0">Tap seats on the map. You can pick up to 6.</p>';
+    $('#goPax').disabled=!n;DB.set('sel',sel);
+  };
+  $('#seatMap').addEventListener('click',e=>{
+    const el=e.target.closest('.seat');if(!el||el.disabled)return;const n=+el.dataset.n,i=sel.seats.indexOf(n);
+    if(i>-1)sel.seats.splice(i,1);else if(sel.seats.length>=6)return toast('You can book up to 6 seats at a time','warning');else sel.seats.push(n);upd();
+  });
+  $('#goPax').onclick=()=>go('passenger.html');upd();
+},
+passenger(){
+  if(!requireLogin())return;
+  const sel=DB.get('sel'),b=buses().find(x=>x.id===sel?.busId);
+  if(!b||!sel.seats.length){$('#view').innerHTML='<div class="card p-4 text-center">Pick your seats first. <a href="#search">Search buses</a></div>';return}
+  const u=user(),fare=sel.seats.length*b.price,gst=Math.round(fare*.05),total=fare+gst;
+  $('#paxForms').innerHTML=sel.seats.map((s,i)=>`<div class="card p-4 shadow-sm mb-3"><h6 class="fw-bold">Passenger ${i+1} <span class="chip">Seat ${s}</span></h6><div class="row g-3">
+   <div class="col-md-6"><label class="form-label">Full name</label><input class="form-control pn"><div class="invalid-feedback">Enter the passenger name.</div></div>
+   <div class="col-6 col-md-3"><label class="form-label">Age</label><input type="number" class="form-control pa" min="1" max="110"><div class="invalid-feedback">Age 1 to 110.</div></div>
+   <div class="col-6 col-md-3"><label class="form-label">Gender</label><select class="form-select pg"><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select><div class="invalid-feedback">Select gender.</div></div></div></div>`).join('');
+  $('#email').value=u.email;$('#phone').value=u.phone||'';
+  $('#summary').innerHTML=`<h6 class="fw-bold">${b.name}</h6><div class="text-muted small mb-2">${b.from} to ${b.to}<br>${fmtDate(sel.date)}, ${b.dep}</div>
+   <div class="d-flex justify-content-between"><span>Fare</span><span>${inr(fare)}</span></div><div class="d-flex justify-content-between"><span>GST (5%)</span><span>${inr(gst)}</span></div><hr>
+   <div class="d-flex justify-content-between fw-bold fs-5"><span>Total</span><span>${inr(total)}</span></div>`;
+  $('#paxForm').addEventListener('submit',e=>{
+    e.preventDefault();
+    const names=$$('.pn'),ages=$$('.pa'),gens=$$('.pg');
+    const ok=[...names.map(x=>mark(x,x.value.trim().length>=2)),...ages.map(x=>mark(x,x.value>=1&&x.value<=110)),...gens.map(x=>mark(x,!!x.value)),mark($('#email'),emailOk($('#email').value)),mark($('#phone'),phoneOk($('#phone').value))].every(Boolean);
+    if(!ok)return toast('Please fix the highlighted fields','danger');
+    const tk=taken(b,sel.date);
+    if(sel.seats.some(s=>tk.has(s))){toast('Some seats were just booked. Please pick again.','danger');return setTimeout(()=>go('seats.html'),1200)}
+    const bk={id:'BK'+Date.now().toString().slice(-8),busId:b.id,busName:b.name,type:b.type,from:b.from,to:b.to,dep:b.dep,arr:b.arr,date:sel.date,seats:[...sel.seats],
+      passengers:sel.seats.map((s,i)=>({seat:s,name:names[i].value.trim(),age:ages[i].value,gender:gens[i].value})),email:$('#email').value,phone:$('#phone').value,fare,gst,total,status:'Confirmed',user:u.email,created:new Date().toISOString()};
+    DB.set('bookings',[...bookings(),bk]);DB.set('last',bk.id);localStorage.removeItem('sel');go('confirmation.html');
+  });
+},
+confirmation(){
+  const b=bookings().find(x=>x.id===DB.get('last'));
+  if(!b){$('#view').innerHTML='<div class="card p-4 text-center">No recent booking. <a href="#bookings">View my bookings</a></div>';return}
+  $('#ticket').innerHTML=ticket(b);
+},
+bookings(){
+  if(!requireLogin())return;
+  const draw=()=>{
+    const list=bookings().filter(x=>x.user===user().email).reverse();
+    $('#list').innerHTML=list.length?list.map(b=>`<div class="mb-4">${ticket(b)}${b.status==='Confirmed'&&b.date>=today()?`<div class="text-center mt-2"><button class="btn btn-outline-danger btn-sm" data-c="${b.id}">Cancel booking</button></div>`:''}</div>`).join('')
+      :'<div class="card p-4 text-center text-muted">You have no bookings yet. <a href="#index">Find a bus</a></div>';
+    $$('[data-c]').forEach(x=>x.onclick=()=>{if(!confirm('Cancel this booking? Your seats will be released.'))return;
+      DB.set('bookings',bookings().map(b=>b.id===x.dataset.c?{...b,status:'Cancelled'}:b));toast('Booking cancelled');draw()});
+  };draw();
+},
+admin(){
+  const u=user();if(!u||u.role!=='admin'){$('#view').innerHTML='<div class="card p-4 text-center">Admin access only. <a href="#login">Log in as admin</a></div>';return}
+  const city=s=>CITIES.map(c=>`<option>${c}</option>`).join('');
+  $('#bfrom').innerHTML=city();$('#bto').innerHTML=city();$('#bto').selectedIndex=1;
+  const draw=()=>{
+    const B=bookings(),ok=B.filter(x=>x.status==='Confirmed');
+    $('#stats').innerHTML=[['Buses',buses().length],['Bookings',B.length],['Cancelled',B.length-ok.length],['Revenue',inr(ok.reduce((a,x)=>a+x.total,0))]].map(([k,v])=>`<div class="col-6 col-lg-3"><div class="card stat p-3"><div class="text-muted small">${k}</div><div class="fs-3 fw-bold">${v}</div></div></div>`).join('');
+    $('#busRows').innerHTML=buses().map(b=>`<tr><td>${b.name}</td><td>${b.from} to ${b.to}</td><td>${b.dep} - ${b.arr}</td><td>${b.type}</td><td>${inr(b.price)}</td><td><button class="btn btn-sm btn-outline-danger" data-d="${b.id}">Delete</button></td></tr>`).join('');
+    $('#bkRows').innerHTML=B.length?B.slice().reverse().map(b=>`<tr><td>${b.id}</td><td>${b.user}</td><td>${b.busName}<br><small class="text-muted">${b.from} to ${b.to}</small></td><td>${fmtDate(b.date)}</td><td>${b.seats.join(', ')}</td><td>${inr(b.total)}</td><td><span class="badge bg-${b.status==='Confirmed'?'success':'secondary'}">${b.status}</span></td></tr>`).join(''):'<tr><td colspan="7" class="text-muted text-center">No bookings yet.</td></tr>';
+    $$('[data-d]').forEach(x=>x.onclick=()=>{if(confirm('Delete this bus?')){DB.set('buses',buses().filter(b=>b.id!==x.dataset.d));draw()}});
+  };
+  $('#busForm').addEventListener('submit',e=>{
+    e.preventDefault();const g=i=>$('#'+i),dur=+g('bdur').value,[h,m]=g('bdep').value.split(':').map(Number);
+    const ok=[mark(g('bname'),g('bname').value.trim().length>=3),mark(g('bto'),g('bto').value!==g('bfrom').value),mark(g('bprice'),+g('bprice').value>=100),mark(g('bdur'),dur>=1&&dur<=24)].every(Boolean);
+    if(!ok)return toast('Check the bus details','danger');
+    const a=h+dur;
+    DB.set('buses',[...buses(),{id:'B'+Date.now().toString().slice(-6),name:g('bname').value.trim(),type:g('btype').value,from:g('bfrom').value,to:g('bto').value,dep:g('bdep').value,dur,arr:String(a%24).padStart(2,'0')+':'+String(m).padStart(2,'0')+(a>=24?' +1':''),price:+g('bprice').value,color:'#0d6efd'}]);
+    e.target.reset();toast('Bus added');draw();
+  });
+  draw();
+}};
+
+function ticket(b){
+  return `<div class="ticket shadow-sm"><div class="top d-flex justify-content-between flex-wrap gap-2">
+   <div><div class="small opacity-75">Booking ID</div><div class="fs-5 fw-bold">${b.id}</div></div>
+   <div class="text-end"><span class="badge ${b.status==='Confirmed'?'bg-success':'bg-secondary'}">${b.status}</span><div class="small opacity-75 mt-1">${b.busName}, ${b.type}</div></div></div>
+   <div class="body"><div class="d-flex align-items-center mb-3"><div><div class="time">${b.dep}</div><small class="text-muted">${b.from}</small></div><div class="line"><small>${fmtDate(b.date)}</small></div><div class="text-end"><div class="time">${b.arr}</div><small class="text-muted">${b.to}</small></div></div>
+   <div class="table-responsive"><table class="table table-sm mb-2"><thead><tr><th>Passenger</th><th>Age</th><th>Gender</th><th>Seat</th></tr></thead><tbody>${b.passengers.map(p=>`<tr><td>${p.name}</td><td>${p.age}</td><td>${p.gender}</td><td>${p.seat}</td></tr>`).join('')}</tbody></table></div>
+   <div class="d-flex justify-content-between small text-muted"><span>Fare ${inr(b.fare)} + GST ${inr(b.gst)}</span><span class="fw-bold fs-6 text-dark">Total ${inr(b.total)}</span></div></div></div>`;
+}
+
+let PAGE='index';
+function route(){
+  PAGE=location.hash.slice(1);if(!$('#t-'+PAGE))PAGE='index';
+  const v=$('#view');v.innerHTML=$('#t-'+PAGE).innerHTML;
+  v.style.animation='none';v.offsetHeight;v.style.animation='';
+  layout();window.scrollTo(0,0);P[PAGE]?.();
+}
+window.addEventListener('hashchange',route);
+seed();route();
+
+</script>
+</body>
+</html>
